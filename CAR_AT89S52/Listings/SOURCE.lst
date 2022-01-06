@@ -1,0 +1,510 @@
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN .\Objects\source.obj
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE source.asm SET(SMALL) DEBUG PRINT(.\Listings\source.lst) OBJECT(.\Objec
+                      ts\source.obj) EP
+
+LOC  OBJ            LINE     SOURCE
+
+0000                   1     ORG 0000H
+0000 8024              2             JMP DEFINE_PORT
+000B                   3     ORG 000BH
+000B 020141            4             LJMP ISR_TIMER0   
+0023                   5     ORG 0023H
+0023 02014C            6             LJMP ISRUART
+                       7             
+0026                   8     DEFINE_REG52:
+  00C8                 9             T2CON                   DATA    0C8H
+  00CA                10             RCAP2L                  DATA    0CAH
+  00CB                11             RCAP2H                  DATA    0CBH
+  00CC                12             TL2                     DATA    0CCH
+  00CD                13             TH2                     DATA    0CDH
+                      14                     
+  00AD                15             ET2                     BIT     0ADH
+  00BD                16             PT2                     BIT     0BDH
+  0091                17             T2EX                    BIT     91H
+  0090                18             T2                      BIT     90H
+  00CF                19             TF2                     BIT     0CFH
+  00CE                20             EXF2                    BIT     0CEH
+  00CD                21             RCLK                    BIT     0CDH
+  00CC                22             TCLK                    BIT     0CCH
+  00CB                23             EXEN2                   BIT     0CBH
+  00CA                24             TR2                     BIT     0CAH
+  00C9                25             C_T2                    BIT     0C9H
+  00C8                26             CP_RL2                  BIT     0C8H
+                      27     
+0026                  28     DEFINE_PORT:
+  00A0                29             MOTOR_A_PORT    EQU P2.0
+  00A2                30             AIN_1_PORT              EQU P2.2
+  00A1                31             AIN_2_PORT              EQU P2.1
+  00A3                32             BIN_1_PORT              EQU P2.3
+  00A4                33             BIN_2_PORT              EQU P2.4
+  00A5                34             MOTOR_B_PORT    EQU     P2.5
+  0094                35             SERVO_PORT              EQU     P1.4
+  0090                36             SENSOR_0_PORT   EQU     P1.0
+  0092                37             SENSOR_1_PORT   EQU P1.2
+  0093                38             SENSOR_2_PORT   EQU     P1.3
+  00B6                39             MODE_BUTTON             EQU P3.6
+                      40                     
+0026                  41     DEFINE_ADDRESS:
+  0030                42             MOTOR_SPEED             EQU 30H
+  0031                43             SERVO_ANGLE             EQU 31H
+  0032                44             MOTOR_COUNTER   EQU 32H
+  0033                45             SERVO_COUNTER   EQU 33H
+  0034                46             DISTANCE                EQU 34H
+  0035                47             RECEIVED_DATA   EQU     35H
+  0036                48             DRIVE_MODE              EQU     36H
+                      49     
+0026                  50     DEFINE_VALUE:
+0026 753110           51             MOV SERVO_ANGLE,        #16
+0029 75304B           52             MOV MOTOR_SPEED,        #75 ;75/100
+002C 753200           53             MOV MOTOR_COUNTER,      #0
+002F 753300           54             MOV SERVO_COUNTER,      #0
+0032 753400           55             MOV DISTANCE,           #0
+0035 753500           56             MOV RECEIVED_DATA,      #0
+0038 753601           57             MOV DRIVE_MODE,         #1
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     2
+
+                      58     
+003B                  59     MAIN:
+003B 1175             60             ACALL SETUP
+                      61             
+003D 20B632           62             JB MODE_BUTTON, MODE_2
+0040                  63                     MODE_1:
+0040 2090FD           64                             JB SENSOR_0_PORT, $                                                
+                                  ;wait until signal is set
+0043                  65                             LOOP_MODE_1:
+0043 309026           66                                     JNB SENSOR_0_PORT, TARGET                               ;if
+                              (signal_0) jmp taget
+0046 20920D           67                                             JB SENSOR_1_PORT, MISS_LEFT                     ;if
+                              (!signal_1) jmp miss_left
+0049 7405             68                                                     MOV A, #5                                  
+                                          ;turn_left mode
+004B 1199             69                                                     ACALL TB6612_SET_MODE                   
+                      70                                                     
+004D 2090FD           71                                                     JB SENSOR_0_PORT, $                        
+                                  ;wait until signal is set               
+                      72                                                     
+0050 7401             73                                                     MOV A, #1                                  
+                                          ;stop mode
+0052 1199             74                                                     ACALL TB6612_SET_MODE                   
+0054 80ED             75                                                     JMP LOOP_MODE_1                 
+0056                  76                                             MISS_LEFT:
+0056 20930D           77                                                     JB SENSOR_2_PORT, MISS_BOTH             ;if
+                              (!signal_2) jmp miss_both
+                      78                                                     
+0059 7404             79                                                     MOV A, #4                                  
+                                          ;turn_right mode
+005B 1199             80                                                     ACALL TB6612_SET_MODE                   
+                      81                                                     
+005D 2090FD           82                                                     JB SENSOR_0_PORT, $                        
+                                  ;wait until signal is set               
+                      83                                                     
+0060 7401             84                                                     MOV A, #1                                  
+                                          ;stop mode
+0062 1199             85                                                     ACALL TB6612_SET_MODE                   
+0064 80DD             86                                                     JMP LOOP_MODE_1
+0066                  87                                             MISS_BOTH:
+0066 7402             88                                                     MOV A, #2                                  
+                                          ;forward mode
+0068 1199             89                                                     ACALL TB6612_SET_MODE
+006A 80D7             90                                                     JMP LOOP_MODE_1
+006C                  91                                     TARGET:
+006C 7401             92                                             MOV A, #1
+006E 1199             93                                             ACALL TB6612_SET_MODE
+0070 80D1             94                                              JMP LOOP_MODE_1
+0072                  95                     MODE_2:
+                      96                             
+0072 80FE             97                     JMP MODE_2              
+0074 22               98     RET
+                      99     
+0075                 100     SETUP:
+0075 118A            101             ACALL PORT_SETUP
+                     102             
+0077 E536            103             MOV A, DRIVE_MODE
+0079 1199            104             ACALL TB6612_SET_MODE
+                     105             
+007B 11E2            106             ACALL TIMER_SETUP
+007D 1184            107             ACALL UART_SETUP
+                     108             
+007F D28C            109             SETB TR0
+0081 D28E            110             SETB TR1
+0083 22              111     RET
+                     112     
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     3
+
+0084                 113     UART_SETUP:
+0084 759850          114             MOV SCON, #50H
+0087 D2AC            115             SETB ES
+0089 22              116     RET
+                     117     
+008A                 118     PORT_SETUP:
+008A D2A0            119             SETB MOTOR_A_PORT;
+008C D2A5            120             SETB MOTOR_B_PORT;
+008E D294            121             SETB SERVO_PORT;
+                     122             
+0090 D290            123             SETB SENSOR_0_PORT ;HIGH, INPUT
+0092 D292            124             SETB SENSOR_1_PORT
+0094 D293            125             SETB SENSOR_2_PORT
+0096 D2B6            126             SETB MODE_BUTTON
+0098 22              127     RET
+                     128     
+0099                 129     TB6612_SET_MODE:        
+0099                 130             SHORT_BRAKE:
+0099 B40009          131                     CJNE A, #0, STOP
+009C D2A1            132                             SETB AIN_2_PORT
+009E D2A2            133                             SETB AIN_1_PORT
+00A0 D2A4            134                             SETB BIN_2_PORT
+00A2 D2A3            135                             SETB BIN_1_PORT
+00A4 22              136             RET
+                     137             
+00A5                 138             STOP:
+00A5 B40109          139                     CJNE A, #1, FORWARD
+00A8 C2A1            140                             CLR AIN_2_PORT
+00AA C2A2            141                             CLR AIN_1_PORT
+00AC C2A4            142                             CLR BIN_2_PORT
+00AE C2A3            143                             CLR BIN_1_PORT
+00B0 22              144             RET
+                     145             
+00B1                 146             FORWARD:
+00B1 B40209          147                     CJNE A, #2, BACK
+00B4 D2A2            148                             SETB AIN_1_PORT
+00B6 C2A1            149                             CLR  AIN_2_PORT
+00B8 D2A4            150                             SETB BIN_2_PORT
+00BA C2A3            151                             CLR  BIN_1_PORT
+00BC 22              152             RET
+                     153             
+00BD                 154             BACK:
+00BD B40309          155                     CJNE A, #3, TURN_RIGHT
+00C0 C2A2            156                             CLR  AIN_1_PORT
+00C2 D2A1            157                             SETB AIN_2_PORT
+00C4 C2A4            158                             CLR      BIN_2_PORT
+00C6 D2A3            159                             SETB BIN_1_PORT
+00C8 22              160             RET
+                     161             
+00C9                 162             TURN_RIGHT:
+00C9 B40409          163                     CJNE A, #4, TURN_LEFT
+00CC D2A2            164                             SETB AIN_1_PORT
+00CE C2A1            165                             CLR  AIN_2_PORT
+00D0 C2A4            166                             CLR  BIN_2_PORT
+00D2 D2A3            167                             SETB BIN_1_PORT
+00D4 22              168             RET
+                     169             
+00D5                 170             TURN_LEFT:
+00D5 B405C1          171                     CJNE A, #5, SHORT_BRAKE
+00D8 C2A2            172                             CLR  AIN_1_PORT
+00DA D2A1            173                             SETB AIN_2_PORT
+00DC D2A4            174                             SETB BIN_2_PORT
+00DE C2A3            175                             CLR  BIN_1_PORT
+00E0 22              176             RET
+00E1 22              177     RET
+                     178     
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     4
+
+00E2                 179     TIMER_SETUP:
+                     180             ;TIMER0, TIMER1
+00E2 D2AF            181             SETB EA
+00E4 D2A9            182             SETB ET0
+                     183             
+00E6 758922          184             MOV TMOD, #0022H
+                     185             
+00E9 758CA3          186             MOV TH0, #00A3H ;0.1MS
+00EC 758AA3          187             MOV TL0, #00A3H
+                     188             
+00EF 758DFD          189             MOV TH1, #00FDH
+00F2 758BFD          190             MOV TL1, #00FDH
+00F5 22              191     RET
+                     192     
+00F6                 193     DELAY_10US: 
+00F6 7E02            194             MOV R6, #2
+00F8 DEFE            195             DJNZ R6, $
+00FA 22              196     RET 
+                     197     
+00FB                 198     MOTOR_PWM:
+00FB E532            199             MOV A, MOTOR_COUNTER
+                     200             
+                     201             ;FOR (i = 0; i < 100; i++) {
+                     202             ;IF (MOTOR_COUNTER <= SPEED) SETB PORT
+                     203             ;ELSE CLR PORT } duty_cycle = motor_counter
+                     204             
+00FD B53002          205             CJNE A, MOTOR_SPEED, NOT_EQUAL_HIGH                     
+0100 800C            206                     JMP MOTOR_HIGH                                  
+0102                 207             NOT_EQUAL_HIGH:
+0102 400A            208                     JC MOTOR_HIGH
+0104                 209                     GREATER_HIGH:                                                           
+0104 B46405          210                             CJNE A, #100, NOT_EQUAL_LOW
+0107 753200          211                                     MOV MOTOR_COUNTER, #0
+010A 8007            212                                     JMP MOTOR_LOW           
+010C                 213                             NOT_EQUAL_LOW:
+010C 8005            214                                     JMP MOTOR_LOW
+010E                 215             MOTOR_HIGH:
+010E D2A0            216                     SETB MOTOR_A_PORT
+0110 D2A5            217                     SETB MOTOR_B_PORT
+0112 22              218             RET
+                     219             
+0113                 220             MOTOR_LOW:
+0113 C2A0            221                     CLR MOTOR_A_PORT
+0115 C2A5            222                     CLR MOTOR_B_PORT
+0117 22              223             RET
+0118 22              224     RET
+                     225     
+0119                 226     SERVO_PWM:      
+0119 E533            227             MOV A, SERVO_COUNTER
+                     228             ;20ms 0,1ms
+011B B53102          229             CJNE A, SERVO_ANGLE, NOT_EQUAL_A                        
+011E 800C            230                     JMP SERVO_HIGH                                  
+0120                 231             NOT_EQUAL_A:
+0120 400A            232                     JC SERVO_HIGH
+0122                 233                     LESS_A:                                                         
+0122 B4C905          234                             CJNE A, #201, NOT_EQUAL_20MS
+0125 753300          235                                     MOV SERVO_COUNTER, #0
+0128 8005            236                                     JMP SERVO_LOW           
+012A                 237                             NOT_EQUAL_20MS:
+012A 8003            238                                     JMP SERVO_LOW   
+                     239                                     
+012C                 240             SERVO_HIGH:
+012C D294            241                     SETB SERVO_PORT
+012E 22              242             RET
+                     243             
+012F                 244             SERVO_LOW:
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     5
+
+012F C294            245                     CLR SERVO_PORT
+0131 22              246             RET
+0132 22              247     RET
+                     248     
+0133                 249     IS_SAFE:
+0133 309005          250             JNB SENSOR_0_PORT, NOT_SAFE
+0136 E536            251                     MOV A, DRIVE_MODE
+0138 1199            252                     ACALL TB6612_SET_MODE
+013A 22              253                     RET
+013B                 254             NOT_SAFE:
+013B 7401            255                     MOV A, #1
+013D 1199            256                     ACALL TB6612_SET_MODE
+013F 22              257                     RET
+0140 22              258     RET
+                     259     
+0141                 260     ISR_TIMER0:
+0141 0532            261             INC MOTOR_COUNTER
+0143 0533            262             INC SERVO_COUNTER
+                     263             
+0145 120119          264             LCALL SERVO_PWM
+0148 1200FB          265             LCALL MOTOR_PWM
+014B 32              266     RETI
+                     267     
+014C                 268     ISRUART:
+014C 209801          269             JB RI, RECEIVED
+014F 32              270                     RETI
+0150                 271             RECEIVED:
+0150 E599            272                     MOV A, SBUF
+0152 F8              273                     MOV R0, A
+                     274                     
+0153                 275                     MOVE_STOP:
+0153 B8530B          276                             CJNE R0, #'S', MOVE_FORWARD
+                     277                             
+0156 753110          278                             MOV SERVO_ANGLE, #16    
+                     279                             
+0159 7401            280                             MOV A, #1
+015B F536            281                             MOV DRIVE_MODE, A
+015D 1199            282                             ACALL TB6612_SET_MODE   
+015F 8064            283                     JMP END_RECEIVED
+                     284                     
+0161                 285                     MOVE_FORWARD:
+0161 B8460B          286                             CJNE R0, #'F', MOVE_BACK
+                     287                             
+0164 753110          288                             MOV SERVO_ANGLE, #16
+                     289                             
+0167 7402            290                             MOV A, #2
+0169 F536            291                             MOV DRIVE_MODE, A
+016B 1199            292                             ACALL TB6612_SET_MODE   
+016D 8056            293                     JMP END_RECEIVED
+                     294                                     
+016F                 295                     MOVE_BACK:
+016F B8420B          296                             CJNE R0, #'B', TURNN_LEFT
+                     297     
+0172 753110          298                             MOV SERVO_ANGLE, #16
+                     299                             
+0175 7403            300                             MOV A, #3
+0177 F536            301                             MOV DRIVE_MODE, A
+0179 1199            302                             ACALL TB6612_SET_MODE
+017B 8048            303                     JMP END_RECEIVED
+                     304                     
+017D                 305                     TURNN_LEFT:
+017D B84C05          306                             CJNE R0, #'L', TURNN_RIGHT
+                     307                             
+0180 75310C          308                             MOV SERVO_ANGLE, #12    
+0183 8040            309                     JMP END_RECEIVED
+                     310                     
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     6
+
+0185                 311                     TURNN_RIGHT:
+0185 B85205          312                             CJNE R0, #'R', TURNN_LEFT_FORWARD
+                     313                             
+0188 753114          314                             MOV SERVO_ANGLE, #20
+018B 8038            315                     JMP END_RECEIVED
+                     316                     
+018D                 317                     TURNN_LEFT_FORWARD:
+018D B8470B          318                             CJNE R0, #'G', TURNN_RIGHT_FORWARD
+                     319                             
+0190 75310C          320                             MOV SERVO_ANGLE, #12    
+                     321                             
+0193 7402            322                             MOV A, #2
+0195 F536            323                             MOV DRIVE_MODE, A
+0197 1199            324                             ACALL TB6612_SET_MODE   
+0199 802A            325                     JMP END_RECEIVED
+                     326                                     
+019B                 327                     TURNN_RIGHT_FORWARD:
+019B B8490B          328                             CJNE R0, #'I', TURNN_LEFT_BACK
+                     329                             
+019E 753114          330                             MOV SERVO_ANGLE, #20    
+                     331                             
+01A1 7402            332                             MOV A, #2
+01A3 F536            333                             MOV DRIVE_MODE, A
+01A5 1199            334                             ACALL TB6612_SET_MODE   
+01A7 801C            335                     JMP END_RECEIVED
+                     336                                     
+01A9                 337                     TURNN_LEFT_BACK:
+01A9 B8480B          338                             CJNE R0, #'H', TURNN_RIGHT_BACK
+                     339                             
+01AC 75310C          340                             MOV SERVO_ANGLE, #12    
+                     341                             
+01AF 7403            342                             MOV A, #3
+01B1 F536            343                             MOV DRIVE_MODE, A
+01B3 1199            344                             ACALL TB6612_SET_MODE   
+01B5 800E            345                     JMP END_RECEIVED
+                     346                                     
+01B7                 347                     TURNN_RIGHT_BACK:
+01B7 B84A0B          348                             CJNE R0, #'J', END_RECEIVED
+                     349                             
+01BA 753114          350                             MOV SERVO_ANGLE, #20    
+                     351                             
+01BD 7403            352                             MOV A, #3
+01BF F536            353                             MOV DRIVE_MODE, A
+01C1 1199            354                             ACALL TB6612_SET_MODE   
+01C3 8000            355                     JMP END_RECEIVED
+                     356                     
+01C5                 357                     END_RECEIVED: 
+01C5 C298            358                             CLR RI
+01C7 32              359             RETI
+01C8 32              360     RETI
+                     361     
+                     362     END
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     7
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E              T Y P E  V A L U E   ATTRIBUTES
+
+AIN_1_PORT. . . . .  B ADDR   00A0H.2 A   
+AIN_2_PORT. . . . .  B ADDR   00A0H.1 A   
+BACK. . . . . . . .  C ADDR   00BDH   A   
+BIN_1_PORT. . . . .  B ADDR   00A0H.3 A   
+BIN_2_PORT. . . . .  B ADDR   00A0H.4 A   
+CP_RL2. . . . . . .  B ADDR   00C8H.0 A   
+C_T2. . . . . . . .  B ADDR   00C8H.1 A   
+DEFINE_ADDRESS. . .  C ADDR   0026H   A   
+DEFINE_PORT . . . .  C ADDR   0026H   A   
+DEFINE_REG52. . . .  C ADDR   0026H   A   
+DEFINE_VALUE. . . .  C ADDR   0026H   A   
+DELAY_10US. . . . .  C ADDR   00F6H   A   
+DISTANCE. . . . . .  N NUMB   0034H   A   
+DRIVE_MODE. . . . .  N NUMB   0036H   A   
+EA. . . . . . . . .  B ADDR   00A8H.7 A   
+END_RECEIVED. . . .  C ADDR   01C5H   A   
+ES. . . . . . . . .  B ADDR   00A8H.4 A   
+ET0 . . . . . . . .  B ADDR   00A8H.1 A   
+ET2 . . . . . . . .  B ADDR   00A8H.5 A   
+EXEN2 . . . . . . .  B ADDR   00C8H.3 A   
+EXF2. . . . . . . .  B ADDR   00C8H.6 A   
+FORWARD . . . . . .  C ADDR   00B1H   A   
+GREATER_HIGH. . . .  C ADDR   0104H   A   
+ISRUART . . . . . .  C ADDR   014CH   A   
+ISR_TIMER0. . . . .  C ADDR   0141H   A   
+IS_SAFE . . . . . .  C ADDR   0133H   A   
+LESS_A. . . . . . .  C ADDR   0122H   A   
+LOOP_MODE_1 . . . .  C ADDR   0043H   A   
+MAIN. . . . . . . .  C ADDR   003BH   A   
+MISS_BOTH . . . . .  C ADDR   0066H   A   
+MISS_LEFT . . . . .  C ADDR   0056H   A   
+MODE_1. . . . . . .  C ADDR   0040H   A   
+MODE_2. . . . . . .  C ADDR   0072H   A   
+MODE_BUTTON . . . .  B ADDR   00B0H.6 A   
+MOTOR_A_PORT. . . .  B ADDR   00A0H.0 A   
+MOTOR_B_PORT. . . .  B ADDR   00A0H.5 A   
+MOTOR_COUNTER . . .  N NUMB   0032H   A   
+MOTOR_HIGH. . . . .  C ADDR   010EH   A   
+MOTOR_LOW . . . . .  C ADDR   0113H   A   
+MOTOR_PWM . . . . .  C ADDR   00FBH   A   
+MOTOR_SPEED . . . .  N NUMB   0030H   A   
+MOVE_BACK . . . . .  C ADDR   016FH   A   
+MOVE_FORWARD. . . .  C ADDR   0161H   A   
+MOVE_STOP . . . . .  C ADDR   0153H   A   
+NOT_EQUAL_20MS. . .  C ADDR   012AH   A   
+NOT_EQUAL_A . . . .  C ADDR   0120H   A   
+NOT_EQUAL_HIGH. . .  C ADDR   0102H   A   
+NOT_EQUAL_LOW . . .  C ADDR   010CH   A   
+NOT_SAFE. . . . . .  C ADDR   013BH   A   
+P1. . . . . . . . .  D ADDR   0090H   A   
+P2. . . . . . . . .  D ADDR   00A0H   A   
+P3. . . . . . . . .  D ADDR   00B0H   A   
+PORT_SETUP. . . . .  C ADDR   008AH   A   
+PT2 . . . . . . . .  B ADDR   00B8H.5 A   
+RCAP2H. . . . . . .  D ADDR   00CBH   A   
+RCAP2L. . . . . . .  D ADDR   00CAH   A   
+RCLK. . . . . . . .  B ADDR   00C8H.5 A   
+RECEIVED. . . . . .  C ADDR   0150H   A   
+RECEIVED_DATA . . .  N NUMB   0035H   A   
+RI. . . . . . . . .  B ADDR   0098H.0 A   
+A51 MACRO ASSEMBLER  SOURCE                                                               12/06/2021 00:37:34 PAGE     8
+
+SBUF. . . . . . . .  D ADDR   0099H   A   
+SCON. . . . . . . .  D ADDR   0098H   A   
+SENSOR_0_PORT . . .  B ADDR   0090H.0 A   
+SENSOR_1_PORT . . .  B ADDR   0090H.2 A   
+SENSOR_2_PORT . . .  B ADDR   0090H.3 A   
+SERVO_ANGLE . . . .  N NUMB   0031H   A   
+SERVO_COUNTER . . .  N NUMB   0033H   A   
+SERVO_HIGH. . . . .  C ADDR   012CH   A   
+SERVO_LOW . . . . .  C ADDR   012FH   A   
+SERVO_PORT. . . . .  B ADDR   0090H.4 A   
+SERVO_PWM . . . . .  C ADDR   0119H   A   
+SETUP . . . . . . .  C ADDR   0075H   A   
+SHORT_BRAKE . . . .  C ADDR   0099H   A   
+STOP. . . . . . . .  C ADDR   00A5H   A   
+T2. . . . . . . . .  B ADDR   0090H.0 A   
+T2CON . . . . . . .  D ADDR   00C8H   A   
+T2EX. . . . . . . .  B ADDR   0090H.1 A   
+TARGET. . . . . . .  C ADDR   006CH   A   
+TB6612_SET_MODE . .  C ADDR   0099H   A   
+TCLK. . . . . . . .  B ADDR   00C8H.4 A   
+TF2 . . . . . . . .  B ADDR   00C8H.7 A   
+TH0 . . . . . . . .  D ADDR   008CH   A   
+TH1 . . . . . . . .  D ADDR   008DH   A   
+TH2 . . . . . . . .  D ADDR   00CDH   A   
+TIMER_SETUP . . . .  C ADDR   00E2H   A   
+TL0 . . . . . . . .  D ADDR   008AH   A   
+TL1 . . . . . . . .  D ADDR   008BH   A   
+TL2 . . . . . . . .  D ADDR   00CCH   A   
+TMOD. . . . . . . .  D ADDR   0089H   A   
+TR0 . . . . . . . .  B ADDR   0088H.4 A   
+TR1 . . . . . . . .  B ADDR   0088H.6 A   
+TR2 . . . . . . . .  B ADDR   00C8H.2 A   
+TURNN_LEFT. . . . .  C ADDR   017DH   A   
+TURNN_LEFT_BACK . .  C ADDR   01A9H   A   
+TURNN_LEFT_FORWARD.  C ADDR   018DH   A   
+TURNN_RIGHT . . . .  C ADDR   0185H   A   
+TURNN_RIGHT_BACK. .  C ADDR   01B7H   A   
+TURNN_RIGHT_FORWARD  C ADDR   019BH   A   
+TURN_LEFT . . . . .  C ADDR   00D5H   A   
+TURN_RIGHT. . . . .  C ADDR   00C9H   A   
+UART_SETUP. . . . .  C ADDR   0084H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
